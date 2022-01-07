@@ -11,11 +11,11 @@ from nio import (
     UnknownEvent,
 )
 
-from my_project_name.bot_commands import Command
-from my_project_name.chat_functions import make_pill, react_to_event, send_text_to_room
-from my_project_name.config import Config
-from my_project_name.message_responses import Message
-from my_project_name.storage import Storage
+from matrix_voice_messenger.bot_commands import Command
+from matrix_voice_messenger.chat_functions import make_pill, react_to_event, send_text_to_room
+from matrix_voice_messenger.config import Config
+from matrix_voice_messenger.message_responses import Message
+from matrix_voice_messenger.storage import Storage
 
 logger = logging.getLogger(__name__)
 

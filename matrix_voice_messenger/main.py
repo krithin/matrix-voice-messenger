@@ -16,9 +16,9 @@ from nio import (
     UnknownEvent,
 )
 
-from my_project_name.callbacks import Callbacks
-from my_project_name.config import Config
-from my_project_name.storage import Storage
+from matrix_voice_messenger.callbacks import Callbacks
+from matrix_voice_messenger.config import Config
+from matrix_voice_messenger.storage import Storage
 
 logger = logging.getLogger(__name__)
 
