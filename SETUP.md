@@ -1,151 +1,41 @@
 # Setup
 
-nio-template is a sample repository of a working Matrix bot that can be taken
-and transformed into one's own bot, service or whatever else may be necessary.
-Below is a quick setup guide to running the existing bot.
+I typically run the matrix-voice-messenger bot as a Python process on the Raspberry Pi, rather than as a Docker container. This is because it needs to interface with custom hardware on the box, including the combination LED/button, and I haven't tested yet if the drivers and libraries for that that actually work when running through Docker.
 
 ## Install the dependencies
 
-There are two paths to installing the dependencies for development.
+### Hardware setup
 
-### Using `docker-compose`
+See the [hardware setup](hardware-setup.md) page.
 
-It is **recommended** to use Docker Compose to run the bot while
-developing, as all necessary dependencies are handled for you. After
-installation and ensuring the `docker-compose` command works, you need to:
+### Systemwide stuff
 
-1. Create a data directory and config file by following the
-   [docker setup instructions](docker#setup).
-
-2. Create a docker volume pointing to that directory:
-
-   ```
-   docker volume create \
-     --opt type=none \
-     --opt o=bind \
-     --opt device="/path/to/data/dir" data_volume
-   ```
-
-Run `docker/start-dev.sh` to start the bot.
-
-**Note:** If you are trying to connect to a Synapse instance running on the
-host, you need to allow the IP address of the docker container to connect. This
-is controlled by `bind_addresses` in the `listeners` section of Synapse's
-config. If present, either add the docker internal IP address to the list, or
-remove the option altogether to allow all addresses.
-
-### Running natively
-
-If you would rather not or are unable to run docker, the following will
-instruct you on how to install the dependencies natively:
-
-#### Install libolm
-
-You can install [libolm](https://gitlab.matrix.org/matrix-org/olm) from source,
-or alternatively, check your system's package manager. Version `3.0.0` or
-greater is required.
-
-**(Optional) postgres development headers**
-
-By default, the bot uses SQLite as its storage backend. This is fine for a few
-hundred users, but if you plan to support a much higher volume of requests, you
-may consider using Postgres as a database backend instead.
-
-If you want to use postgres as a database backend, you'll need to install
-postgres development headers:
-
-Debian/Ubuntu:
-
-```
-sudo apt install libpq-dev libpq5
-```
-
-Arch:
-
-```
-sudo pacman -S postgresql-libs
-```
+1. Install `libolm`. I had to [build this from source](https://gitlab.matrix.org/matrix-org/olm#building) and then install it by hand (with `sudo make install`) because of some incompatibility issues with the version from my package manager at the time of writing (early 2022). On the low-power Pi Zero in the AIY Voice Kit this might take literally hours to complete.
+2. Install python libraries: `sudo apt install python3-dev` on my Ubuntu system.
+3. Install libffi: `sudo apt install libffi-dev`.
+4. Regenerate the system linker cache. I'm not sure why I needed to do this, but I ran into runtime difficulties without it. `sudo rm /etc/ld.so.cache && sudo ldconfig`.
 
 #### Install Python dependencies
 
-Create and activate a Python 3 virtual environment:
+1. Clone this repository. I'll assume it was cloned into `/home/pi/matrix-voice-messenger`.
+2. Create and activate a Python 3 virtual environment, and set it up with all the right dependencies:
 
 ```
-virtualenv -p python3 env
+python3 -m venv ./env
 source env/bin/activate
-```
-
-Install python dependencies:
-
-```
+pip install -U pip
 pip install -e .
 ```
 
-(Optional) If you want to use postgres as a database backend, use the following
-command to install postgres dependencies alongside those that are necessary:
+## Installation and Configuration
 
-```
-pip install -e ".[postgres]"
-```
+1. Copy the top-level `matrix-voice-messenger.service` file to an appropriate systemd directory: `sudo cp matrix-voice-messenger.service /etc/systemd/system/`. Then edit that file if necessary to replace the `/home/pi` paths with the path to the place you actually cloned the repository.
+    
+    You may also need to run `sudo systemctl daemon-reload` here.
 
-## Configuration
+2. Copy the config file (`sudo mkdir /etc/matrix-voice-messenger && sudo cp sample.config.yaml /etc/matrix-voice-messenger/config.yaml`) and then edit that file to pass in the actual matrix credentials and homeserver you'd like the bot to use.
 
-Copy the sample configuration file to a new `config.yaml` file.
-
-```
-cp sample.config.yaml config.yaml
-```
-
-Edit the config file. The `matrix` section must be modified at least.
-
-#### (Optional) Set up a Postgres database
-
-Create a postgres user and database for matrix-reminder-bot:
-
-```
-sudo -u postgresql psql createuser nio-template -W  # prompts for a password
-sudo -u postgresql psql createdb -O nio-template nio-template
-```
-
-Edit the `storage.database` config option, replacing the `sqlite://...` string with `postgres://...`. The syntax is:
-
-```
-database: "postgres://username:password@localhost/dbname?sslmode=disable"
-```
-
-See also the comments in `sample.config.yaml`.
-
-## Running
-
-### Docker
-
-Refer to the docker [run instructions](docker/README.md#running).
-
-### Native installation
-
-Make sure to source your python environment if you haven't already:
-
-```
-source env/bin/activate
-```
-
-Then simply run the bot with:
-
-```
-matrix-voice-messenger
-```
-
-You'll notice that "matrix-voice-messenger" is scattered throughout the codebase. When
-it comes time to modifying the code for your own purposes, you are expected to
-replace every instance of "matrix-voice-messenger" and its variances with your own
-project's name.
-
-By default, the bot will run with the config file at `./config.yaml`. However, an
-alternative relative or absolute filepath can be specified after the command:
-
-```
-matrix-voice-messenger other-config.yaml
-```
+3. Enable and start the service! `sudo systemctl start matrix-voice-messenger && sudo systemctl enable matrix-voice-messenger`.
 
 ## Testing the bot works
 
