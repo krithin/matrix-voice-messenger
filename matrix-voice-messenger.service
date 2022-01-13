@@ -3,9 +3,11 @@ Description=A matrix-based answering machine.
 
 [Service]
 Type=simple
-DynamicUser=yes
-StateDirectory=matrix-voice-messenger
-WorkingDirectory=/var/lib/matrix-voice-messenger/
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/matrix-voice-messenger/data
+Environment=DISPLAY=:0
+Environment=HOME=/home/pi
 ExecStart=/home/pi/matrix-voice-messenger/env/bin/python /home/pi/matrix-voice-messenger/matrix-voice-messenger /etc/matrix-voice-messenger/config.yaml
 RemainAfterExit=no
 Restart=always

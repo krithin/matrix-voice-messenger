@@ -12,6 +12,8 @@ from nio import (
     LocalProtocolError,
     LoginError,
     MegolmEvent,
+    RoomEncryptedAudio,
+    RoomMessageAudio,
     RoomMessageText,
     UnknownEvent,
 )
@@ -63,6 +65,7 @@ async def main():
     # Set up event callbacks
     callbacks = Callbacks(client, store, config)
     client.add_event_callback(callbacks.message, (RoomMessageText,))
+    client.add_event_callback(callbacks.play_audio, (RoomMessageAudio, RoomEncryptedAudio))
     client.add_event_callback(
         callbacks.invite_event_filtered_callback, (InviteMemberEvent,)
     )

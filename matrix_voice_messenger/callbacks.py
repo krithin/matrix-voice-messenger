@@ -1,4 +1,7 @@
+import asyncio
 import logging
+from typing import Union
+from urllib.parse import urlparse
 
 from nio import (
     AsyncClient,
@@ -7,9 +10,12 @@ from nio import (
     MatrixRoom,
     MegolmEvent,
     RoomGetEventError,
+    RoomEncryptedAudio,
+    RoomMessageAudio,
     RoomMessageText,
     UnknownEvent,
 )
+import nio
 
 from matrix_voice_messenger.bot_commands import Command
 from matrix_voice_messenger.chat_functions import make_pill, react_to_event, send_text_to_room
@@ -51,8 +57,8 @@ class Callbacks:
             return
 
         logger.debug(
-            f"Bot message received for room {room.display_name} | "
-            f"{room.user_name(event.sender)}: {msg}"
+            "Bot message received for room %s | %s: %s",
+            room.display_name, room.user_name(event.sender), msg
         )
 
         # Process as message if in a public room without command prefix
@@ -76,6 +82,85 @@ class Callbacks:
 
         command = Command(self.client, self.store, self.config, msg, room, event)
         await command.process()
+
+    async def play_audio(self, room: MatrixRoom, event: Union[RoomEncryptedAudio, RoomMessageAudio]) -> None:
+        """Callback for when an audio message event is received
+
+        Args:
+            room: The room the event came from.
+
+            event: The event defining the message.
+        """
+        # Extract the message text
+        msg = event.body
+
+        # Ignore messages from ourselves
+        if event.sender == self.client.user:
+            return
+
+        logger.debug(event)
+
+        logger.debug(
+            "%s message received for room %s | %s: %s",
+            "Audio", room.display_name, room.user_name(event.sender), msg
+        )
+
+        # For audio messages, unlike text messages, we always want to pass them to the
+        # audio player, without filtering for the command prefix or checking if we're in a DM.
+        # We do, however, impose limits on the file size and duration.
+        content_info = event.source["content"]["info"]
+        file_size_bytes = content_info["size"]
+        if file_size_bytes is None or file_size_bytes > 10_000_000:
+            logger.info(
+                "Skipping %s because it's too large: %d", msg, file_size_bytes
+            )
+            return
+        duration = content_info["duration"]  # ms
+        if duration is None or duration > 60_000:
+            logger.info(
+                "Skipping %s because it's too long: %d ms", msg, duration
+            )
+            return
+
+        url = urlparse(event.url)
+        response = await self.client.download(
+            url.hostname,
+            url.path[1:],  # Strip the leading '/'
+            msg,
+            allow_remote=False,
+        )
+        logger.debug(response)
+
+        if hasattr(event, "key"):
+            # We got an encrypted event
+            logger.debug("About to decrypt file %s", msg)
+            decryption_keys = {
+                "key": event.key["k"],
+                "hash": event.hashes["sha256"],
+                "iv": event.iv,
+            }
+            decrypted_content = nio.crypto.decrypt_attachment(
+                response.body, **decryption_keys
+            )
+        else:
+            decrypted_content = response.body
+
+        PIPE = asyncio.subprocess.PIPE
+        proc = await asyncio.create_subprocess_exec(
+            "/usr/bin/cvlc", "--play-and-exit", "-", stdin=PIPE, stdout=PIPE, stderr=PIPE
+        )
+
+        stdout, stderr = await proc.communicate(decrypted_content)
+        if stderr:
+            logger.error(
+                "Error playing file %s.\nStdout %s\nStderr %s",
+                msg,
+                stdout,
+                stderr,
+            )
+        else:
+            logger.debug("Played file %s. Stdout %s", msg, stdout)
+
 
     async def invite(self, room: MatrixRoom, event: InviteMemberEvent) -> None:
         """Callback for when an invite is received. Join the room specified in the invite.

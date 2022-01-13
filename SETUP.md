@@ -10,7 +10,7 @@ See the [hardware setup](hardware-setup.md) page.
 
 ### Systemwide stuff
 
-1. Install `libolm`. I had to [build this from source](https://gitlab.matrix.org/matrix-org/olm#building) and then install it by hand (with `sudo make install`) because of some incompatibility issues with the version from my package manager at the time of writing (early 2022). On the low-power Pi Zero in the AIY Voice Kit this might take literally hours to complete.
+1. Install `libolm`. I had to [build this from source](https://gitlab.matrix.org/matrix-org/olm#building) and then install it by hand (with `sudo make -C build install`) because of some incompatibility issues with the version from my package manager at the time of writing (early 2022). On the low-power Pi Zero in the AIY Voice Kit this might take almost an hour to complete.
 2. Install python libraries: `sudo apt install python3-dev` on my Ubuntu system.
 3. Install libffi: `sudo apt install libffi-dev`.
 4. Regenerate the system linker cache. I'm not sure why I needed to do this, but I ran into runtime difficulties without it. `sudo rm /etc/ld.so.cache && sudo ldconfig`.
